@@ -1,0 +1,271 @@
+﻿
+@{
+    ViewBag.Title = "Map";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Realtime Location Tracker</title>
+    <style>
+
+        #map {
+            height: 750px;
+            width: 850px;
+            position: center;
+        }
+
+        #body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            background-color: white;
+            background-size: cover;
+        }
+        #harta{
+            display: flex;
+        }
+        #info-user{
+            padding: 30px;
+        }
+
+        p {
+            background-color: greenyellow;
+            border-radius: 10px;
+            padding: 20px;
+            color: black;
+        }
+        
+        h2{
+            background-color: greenyellow;
+            border-radius: 10px;
+            padding: 20px;
+            color: black;
+            font-size: 20px;
+            font-weight: bold;
+            position: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="harta">
+
+        <div id="map"></div>
+        <script>
+        var map, currentMarker, currentCircle, markers = []; // Definiți variabila markers aici
+        var userName = '@Html.Raw(Request.QueryString["userName"])'; // Obțineți username-ul din URL
+        console.log('Username: ', userName);
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 44.4361, lng: 26.1027 },
+                zoom: 8
+            });
+
+            $.getJSON('/Home/GetAllUsers', function (users) {
+                // Parcurgeți lista de utilizatori și adăugați markere pe hartă pentru fiecare utilizator
+                $.each(users, function (index, user) {
+                    console.log(user); // Afișează detaliile utilizatorului în consolă
+                    var marker = new google.maps.Marker({
+                        position: { lat: user.Latitude, lng: user.Longitude },
+                        map: map,
+                        title: user.UserName // sau altă proprietate a utilizatorului pentru titlu
+                    });
+
+
+                    // Adăugați un ascultător de evenimente pentru afișarea numelui utilizatorului la mouseover
+                    marker.addListener('mouseover', function () {
+                        var infoWindow = new google.maps.InfoWindow({
+                            content: user.UserName
+                        });
+                        infoWindow.open(map, marker);
+                    });
+                    markers.push(marker); // adăugați markerul la lista de markere
+                });
+            }).fail(function (jqXHR, textStatus, errorThrown) {
+                console.error('Error fetching users:', textStatus, errorThrown);
+            });
+
+        }
+
+
+        /* Functie salvare date utilizator curent */
+
+        function saveUserLocation(latitude, longitude) {
+        var userName = '@Html.Raw(Request.QueryString["userName"])'; // Obțineți username-ul din URL
+
+        $.ajax({
+            url: '@Url.Action("SaveUserLocation", "Home")',
+            type: 'POST',
+            data: {
+                userName: userName,
+                latitude: latitude,
+                longitude: longitude
+            },
+            success: function (response) {
+                if (response.success) {
+                    console.log('User location saved successfully.');
+                } else {
+                    console.error('Failed to save user location:', response.message);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Failed to save user location:', error);
+            }
+        });
+}
+
+
+
+
+        function getPosition(position)
+        {
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+            var accuracy = position.coords.accuracy;
+            saveUserLocation(lat, lng);
+
+            if (currentMarker) {
+                currentMarker.setMap(null);
+            }
+
+            if (currentCircle) {
+                currentCircle.setMap(null);
+            }
+
+            currentMarker = new google.maps.Marker({
+                position: { lat: lat, lng: lng },
+                map: map,
+                icon: {
+                    url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', // Setarea iconitei markerului ca punct roșu
+                    scaledSize: new google.maps.Size(40, 40) // Setarea dimensiunii iconiței
+                }
+            });
+
+
+            //Crearea unui InfoWindow personalizat pentru markerul curent
+            var infoWindow = new google.maps.InfoWindow({
+                content: '<div style="color: black; font-weight: bold;">' + userName + "'s location</div>"
+            });
+
+
+
+
+            // Atașarea InfoWindow-ului la marker
+            infoWindow.open(map, currentMarker);
+
+
+            var maxAccuracyRadius = 800; // Set a maximum radius for the accuracy circle
+            var adjustedAccuracy = Math.min(accuracy, maxAccuracyRadius);
+
+            currentCircle = new google.maps.Circle({
+                center: { lat: lat, lng: lng },
+                radius: adjustedAccuracy,
+                map: map,
+                fillColor: '#AA0000',
+                fillOpacity: 0.35,
+                strokeColor: '#AA0000',
+                strokeOpacity: 0.8,
+                strokeWeight: 2
+            });
+
+            map.setCenter({ lat: lat, lng: lng });
+            map.fitBounds(currentCircle.getBounds());
+
+            console.log("Your coordinate is: \n Lat: " + lat + "\n Long: " + lng + " \n Accuracy: " + accuracy);
+
+        }
+
+        function showError(error) {
+            console.warn('ERROR(' + error.code + '): ' + error.message);
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(getPosition, showError, {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
+            });
+        } else {
+            console.log("Your browser doesn't support geolocation feature!");
+        }
+
+            // Lista de utilizatori apropiati
+            var nearbyUsers = [];
+            var currentLat, currentLon;
+
+            function calculateDistance(lat1, lon1, lat2, lon2) {
+                var R = 6371; // Raza Pământului în kilometri
+                var dLat = (lat2 - lat1) * Math.PI / 180;
+                var dLon = (lon2 - lon1) * Math.PI / 180;
+                var a =
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                var d = R * c; // Distanta in kilometri
+                return d;
+            }
+
+            function displayNearbyUsers(users) {
+                // Selectăm div-ul "info-user"
+                var infoUserDiv = document.getElementById('info-user');
+                var title = document.createElement('h2');
+                title.textContent = "Get Closer With:";
+                infoUserDiv.appendChild(title);
+
+                // Parcurgem lista de utilizatori apropiati și cream un paragraf pentru fiecare utilizator
+                users.forEach(function (user) {
+                    console.log('@Html.Raw(Request.QueryString["userName"])');
+                    console.log('Utiliz baza de date: ', user.UserName);
+
+                    if (user.UserName != '@Html.Raw(Request.QueryString["userName"])') {
+                        var distance = calculateDistance(currentLat, currentLon, user.Latitude, user.Longitude);
+                        if (distance < 4.5) {
+                            var userParagraph = document.createElement('p');
+                            userParagraph.textContent = user.UserName + " - Distance: " + distance.toFixed(2) + " km";
+                            infoUserDiv.appendChild(userParagraph);
+                        }
+                    }
+
+                });
+            }
+
+            // Obținem coordonatele utilizatorului curent și lista de utilizatori din baza de date
+            function getCoordinatesAndUsers(position) {
+                currentLat = position.coords.latitude;
+                currentLon = position.coords.longitude;
+
+                // Obținem lista de utilizatori din baza de date
+                $.getJSON('/Home/GetAllUsers', function (users) {
+                    // Afisam utilizatorii apropiati in div-ul "info-user"
+                    displayNearbyUsers(users);
+                });
+            }
+
+            // Funcție pentru afișarea erorilor în cazul în care geolocația nu este disponibilă
+            function showError(error) {
+                console.warn('ERROR(' + error.code + '): ' + error.message);
+            }
+
+            // Obținem coordonatele utilizatorului curent utilizând geolocația
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(getCoordinatesAndUsers, showError);
+            } else {
+                console.log("Your browser doesn't support geolocation feature!");
+            }
+
+
+
+        </script>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAeQ8cQODH0eraY46-asbL1SL3wSniynLk&callback=initMap" async defer></script>
+
+        <div id="info-user"></div>
+
+    </div>
+</body>
+</html>
+

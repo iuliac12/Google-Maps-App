@@ -1,0 +1,56 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Realtime Location Tracker</title>
+    <style>
+        <link href="/Content/style.css" rel="stylesheet" >
+        #map {
+            height: 680px;
+            width: 950px;
+        }
+      
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <h1>Welcome to Realtime Location Tracker</h1>
+        <br />
+        <form id="locationForm">
+            <label for="userName">Enter your name:</label>
+            <input type="text" id="userName" name="userName" required>
+            <br />
+            <br />
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <br />
+            <br />
+            <button type="submit" class="styled-button">Show my location on map</button>
+        </form>
+    </div>
+
+
+    <script>
+    document.getElementById('locationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var userName = document.getElementById('userName').value;
+        var password = document.getElementById('password').value;
+
+        // Verificați dacă parola este corectă
+        if (password === "admin") {
+            // Adăugați username-ul ca parametru în URL
+            window.location.href = '@Url.Action("Map", "Home")?userName=' + encodeURIComponent(userName);
+        } else {
+            alert("Wrong password. Please enter the correct password.");
+        }
+    });
+    </script>
+
+
+    <br />
+    <br />
+
+
+</body>
+</html>
